@@ -1,0 +1,25 @@
+{
+  "name": "f1-information-discord-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot that provides information on upcoming F1 races and timings.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tahmid-H/F1-Information-Discord-Bot.git"
+  },
+  "author": "tahmid-H",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/tahmid-H/F1-Information-Discord-Bot/issues"
+  },
+  "homepage": "https://github.com/tahmid-H/F1-Information-Discord-Bot#readme",
+  "dependencies": {
+    "cross-fetch": "^3.1.5",
+    "discord.js": "^13.6.0",
+    "dotenv": "^16.0.0",
+    "python-shell": "^3.0.1"
+  }
+}
