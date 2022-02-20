@@ -16,6 +16,7 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb+srv://tahmid-H:" + str(os.getenv('MONGODB_PASSWORD')) + "@f1-data.6ge2m.mongodb.net/botData?retryWrites=true&w=majority"
 mongodb_client = PyMongo(app)
 db = mongodb_client.db
+ff1.Cache.enable_cache('./ff1Cache')
 
 sprintTrackNames = ['Emilia Romagna', 'Interlagos', 'Red Bull Ring']
 notificationChecker = ['FP1', 'FP2', 'FP3', 'sprint', 'qualification', 'race']
