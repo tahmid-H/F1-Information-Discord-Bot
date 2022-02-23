@@ -9,6 +9,11 @@ import scipy as sp
 import os
 from dotenv import load_dotenv
 import pandas as pd
+from datetime import datetime
+import pycountry
+import pickle
+import us
+
 
 load_dotenv()
 
@@ -16,7 +21,7 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb+srv://tahmid-H:" + str(os.getenv('MONGODB_PASSWORD')) + "@f1-data.6ge2m.mongodb.net/botData?retryWrites=true&w=majority"
 mongodb_client = PyMongo(app)
 db = mongodb_client.db
-ff1.Cache.enable_cache('./ff1Cache')
+ff1.Cache.enable_cache('./backend/ff1Cache')
 
 sprintTrackNames = ['Emilia Romagna', 'Interlagos', 'Red Bull Ring']
 notificationChecker = ['FP1', 'FP2', 'FP3', 'sprint', 'qualification', 'race']
@@ -151,14 +156,43 @@ def getuserdata():
 # ?race=<race name/keyword>
 @app.route('/getRace/')
 def getrace():
-
     params = request.args
-    roundNumber = str(ff1.core.get_round(2022, 'Abu Dhabi'))
-    df = pd.read_pickle('./raceSchedule.pkl').to_dict('index')
-    raceDetail = df[roundNumber]
+    roundNumber = str(ff1.core.get_round(2022, params['race']))
+    df = pd.read_pickle('./backend/raceSchedule.pkl').to_dict('index')
+    raceDetail = df[int(roundNumber)]
     
     return {'Result' : raceDetail}
 
+
+@app.route('/purgeRace/')
+def purgerace():
+    df = pd.read_pickle('./backend/raceSchedule.pkl').to_dict('index')
+    df = pd.DataFrame(df).T
+    df['session5Date'] = df['session5Date'].apply(lambda x: datetime.strptime(x, '%Y-%m-%dT%H:%M:%SZ'))
+
+    dfDropped = df[df['session5Date'] > datetime.utcnow()]
+    dfDropped.to_pickle('./backend/raceSchedule.pkl')
+    return {'Result' : 'Old races successfully removed.'}
+
+########## ADD TZ TO DATABASE
+# ?user=<int>&country=<country>&state=<state if US>
+@app.route('/addTimeZone/')
+def addtimezone():
+    params = request.args
+    with open('./backend/timezoneData.pkl', 'rb') as handle:
+       tzData = pickle.load(handle)
+    alpha_2 = pycountry.countries.search_fuzzy(params['country'])[0].alpha_2
+    tz = tzData[alpha_2]
+    if alpha_2 == 'US':
+        state = us.states.lookup(params['state']).abbr
+        tz = tz[state]
+
+    data = {"$set": {'_id': params['user'], 'discordID' : params['user'], 'tz' : tz }}
+
+    db.userTimezone.update_one({'_id' : params['user']}, data, upsert=True)
+    return {'Result' : tz}
+
+    
 # @app.route('/delUserData/')
 # def deluserdata():
 #     db.userData.delete_many({})
