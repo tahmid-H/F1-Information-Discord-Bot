@@ -13,6 +13,7 @@ from datetime import datetime
 import pycountry
 import pickle
 import us
+import pytz
 
 
 load_dotenv()
@@ -22,6 +23,7 @@ app.config["MONGO_URI"] = "mongodb+srv://tahmid-H:" + str(os.getenv('MONGODB_PAS
 mongodb_client = PyMongo(app)
 db = mongodb_client.db
 ff1.Cache.enable_cache('./backend/ff1Cache')
+scheduleLoc = './backend/raceSchedule.pkl'
 
 sprintTrackNames = ['Emilia Romagna', 'Interlagos', 'Red Bull Ring']
 notificationChecker = ['FP1', 'FP2', 'FP3', 'sprint', 'qualification', 'race']
@@ -32,14 +34,8 @@ def home():
 
 @app.route('/test/')
 def test():
-    req = request.args
-    weekendData = ff1.core.get_session(2019, 'Abu Dhabi')
-    race = weekendData.get_race()
-    t = race['session_start_time']
-    return {'data': t}
-    #return {'FP1Date': weekFP1.date,'FP1Time': weekFP1.session_start_time, 'FP2Date': weekFP2.date, 'FP2Time': weekFP2.session_start_time,'qualificationDate': weekQuali.date , 'qualificationTime': weekQuali.session_start_time, 'raceDate': weekRace.date, 'raceTime': weekRace.session_start_time}
-    #return request.args
-
+    params = request.args
+    return {'result': db.userTimezone.find_one({ '_id' : params['user']}) is None}
 # ?user=<user ID>&race=<race name>&FP1=<yes>&FP2=<yes>&FP3=<yes>&qualification=<yes>&sprint=<yes>&race=<yes>
 @app.route('/addNotification/')
 def addnotification():
@@ -153,25 +149,34 @@ def getuserdata():
         i += 1
     return jsonify(dumps(ret))
 
-# ?race=<race name/keyword>
+# ?user=<discord user ID>&race=<race name/keyword>
 @app.route('/getRace/')
 def getrace():
     params = request.args
     roundNumber = str(ff1.core.get_round(2022, params['race']))
-    df = pd.read_pickle('./backend/raceSchedule.pkl').to_dict('index')
+    df = pd.read_pickle(scheduleLoc).to_dict('index')
     raceDetail = df[int(roundNumber)]
-    
-    return {'Result' : raceDetail}
+    tz = db.userTimezone.find_one({ '_id' : params['user']})
 
+    if tz is None:
+        return {'Result' : raceDetail}
+    else:
+        userTZ = pytz.timezone(tz['tz'])
+        dateFormat = '%a %-d %b, %H:%M %p'
+        for i in range(1, 6):
+            if raceDetail["session" + str(i) + "Date"] is not None:
+                currT = datetime.fromisoformat(raceDetail["session" + str(i) + "Date"])
+                raceDetail["session" + str(i) + "Date"] = currT.astimezone(userTZ).isoformat()
+        return {'Result' : raceDetail}
 
 @app.route('/purgeRace/')
 def purgerace():
-    df = pd.read_pickle('./backend/raceSchedule.pkl').to_dict('index')
+    df = pd.read_pickle(scheduleLoc).to_dict('index')
     df = pd.DataFrame(df).T
     df['session5Date'] = df['session5Date'].apply(lambda x: datetime.strptime(x, '%Y-%m-%dT%H:%M:%SZ'))
 
     dfDropped = df[df['session5Date'] > datetime.utcnow()]
-    dfDropped.to_pickle('./backend/raceSchedule.pkl')
+    dfDropped.to_pickle(scheduleLoc)
     return {'Result' : 'Old races successfully removed.'}
 
 ########## ADD TZ TO DATABASE
@@ -192,7 +197,6 @@ def addtimezone():
     db.userTimezone.update_one({'_id' : params['user']}, data, upsert=True)
     return {'Result' : tz}
 
-    
 # @app.route('/delUserData/')
 # def deluserdata():
 #     db.userData.delete_many({})
@@ -208,5 +212,4 @@ if __name__ == '__main__':
 
 # use virtual env - .\f1API\Scripts\activate
 # helpful link - https://towardsdatascience.com/creating-restful-apis-using-flask-and-python-655bad51b24
-# request inclusion - http://localhost:105/test/?circuit=Monza&year=2021&driver=&scoop=yes
 # mongoDB mods - https://medium.com/@gokulprakash22/getting-started-with-flask-pymongo-d6326db2a9a7

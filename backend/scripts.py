@@ -24,7 +24,7 @@ def timezoneGetter():
 
 # saves F1 schedule formatted to UTC time to timezoneData.pkl
 def f1ScheduleFormatter():
-    df = pd.read_json("./schedule.json")
+    df = pd.read_json("./backend/schedule.json")
     df['round_old'] = df['round']
     df['round'] = df.apply(lambda x: x['round_old'] - 2, axis=1)
     df = df.drop([0,1]).drop(columns=['round_old', 'format', 'meetingStartDate']).set_index('round').replace('TBC', None)
@@ -39,11 +39,12 @@ def f1ScheduleFormatter():
     df['gmtOffset'] = df.apply(lambda x: dfTz.at[x['meetingOfficialName'],'gmtOffset'], axis=1)
 
     # changing time str to datetime object
-    sess = ['Session1Date', '']
     for i in range(1, 6):
-        df['newSession' + str(i) + 'Date'] = df.apply(lambda x: None if x['session' + str(i) + 'Date'] is None else datetime.strptime(str(x['session' + str(i) + 'Date']) + str(x['gmtOffset']), "%Y-%m-%dT%H:%M:%S%z").astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), axis=1)
+        df['newSession' + str(i) + 'Date'] = df.apply(lambda x: None if x['session' + str(i) + 'Date'] is None else datetime.strptime(str(x['session' + str(i) + 'Date']) + str(x['gmtOffset']), "%Y-%m-%dT%H:%M:%S%z").astimezone(timezone.utc).isoformat(), axis=1)
 
     #dropping old times
     df.drop(columns=['session1Date', 'session2Date', 'session3Date', 'session4Date', 'session5Date'], inplace=True)
     df.rename(columns={'newSession1Date': 'session1Date', 'newSession2Date': 'session2Date', 'newSession3Date': 'session3Date', 'newSession4Date': 'session4Date', 'newSession5Date': 'session5Date'}, inplace=True)
-    df.to_pickle('./raceSchedule.pkl')
+    df.to_pickle('./backend/raceSchedule.pkl')
+
+f1ScheduleFormatter()
